@@ -1,10 +1,21 @@
 # RowOrient_DB
 
-A tiny in-memory, row-oriented database in C: tables with typed columns, rows as
+*A tiny in-memory row store in C — where a `WHERE` clause is a function pointer and you own every byte.*
+
+A row-oriented database in miniature: tables with typed columns, rows as
 tagged-union cells, runtime type-checking on insert, and `SELECT` / `DELETE …
-WHERE` expressed as C function pointers. Built to understand how a row store and a
-query predicate actually work underneath — with manual memory ownership from top
-to bottom. No dependencies beyond libc.
+WHERE` expressed as C function pointers. Built to understand how a row store and
+a query predicate actually work underneath — with manual memory ownership from
+top to bottom. No dependencies beyond libc.
+
+**What's interesting here:**
+
+- [Queries are function pointers](#queries-are-function-pointers) — what a query
+  engine hides behind SQL, exposed as a raw `RowPredicate`
+- [Tagged-union cells](#data-model) — a dynamic value type in a language with no
+  dynamic types, switched on by hand
+- [Ownership top to bottom](#data-model) — `db_destroy` frees the whole tree;
+  the demo runs clean under ASan/UBSan
 
 ## Demo
 
@@ -54,6 +65,23 @@ hides behind SQL.
 `table_insert` validates every cell against the column schema and rejects
 mismatches at runtime (a `STRING` into an `INT` column fails) — a hand-rolled
 stand-in for what a typed query layer enforces.
+
+## Module map
+
+| File | Responsibility |
+|---|---|
+| `minidb.h` | Public types and API: `Value`, `Column`, `Row`, `Table`, `Database`, predicates. |
+| `minidb.c` | The engine — table/row lifecycle, typed insert, predicate scans, recursive free. |
+| `main.c` | Demo driver: builds a table, inserts rows, runs the example queries. |
+
+## Build
+
+```sh
+make            # ./minidb, built with ASan + UBSan
+```
+
+C17, single-threaded, POSIX. The sanitizers are on by default so a leak or a
+bad union access fails the run loudly.
 
 ## Out of scope
 
